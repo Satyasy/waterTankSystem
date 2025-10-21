@@ -1,19 +1,18 @@
 import os
 from datetime import datetime
 
-# Load .env if present (requirements.txt includes python-dotenv)
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except Exception:
-    # dotenv is optional; environment variables can be provided by the host
+
     pass
 
 try:
     import mysql.connector
     from mysql.connector import pooling
 except Exception as e:
-    # Provide clearer error at runtime if connector is missing.
+
     raise ImportError("mysql-connector-python is required. Install with 'pip install mysql-connector-python'") from e
 
 DB_CONFIG = {
@@ -26,7 +25,6 @@ DB_CONFIG = {
 
 pool = None
 
-
 def init_pool():
     global pool
     if pool is None:
@@ -34,13 +32,11 @@ def init_pool():
                                            pool_size=int(os.environ.get('DB_POOL_SIZE', 5)),
                                            **DB_CONFIG)
 
-
 def get_db():
     """Return a connection from pool. Caller should close the connection when done."""
     if pool is None:
         init_pool()
     return pool.get_connection()
-
 
 def insert_reading(conn, device_id, ldr, water, buzzer, ts=None):
     if ts is None:
@@ -58,7 +54,6 @@ def insert_reading(conn, device_id, ldr, water, buzzer, ts=None):
     finally:
         cursor.close()
         conn.close()
-
 
 def fetch_latest_readings(conn, device_id=None, limit=10):
     cursor = conn.cursor(dictionary=True)
