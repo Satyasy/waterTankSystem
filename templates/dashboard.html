@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sensor Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  </head>
+  <body class="p-3">
+    <div class="container">
+      <h1>Water Tank Sensor Dashboard</h1>
+
+      <div class="row mb-3">
+        <div class="col-md-4">
+          <label>Status filter</label>
+          <select id="statusFilter" class="form-select">
+            <option value="">All</option>
+            <option value="CRITICAL">CRITICAL</option>
+            <option value="LOW">LOW</option>
+            <option value="MEDIUM">MEDIUM</option>
+            <option value="FULL">FULL</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label>Limit</label>
+          <input id="limitInput" type="number" class="form-control" value="200">
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+          <button id="refreshBtn" class="btn btn-primary">Refresh</button>
+        </div>
+      </div>
+
+      <canvas id="waterChart" height="150"></canvas>
+
+      <h3 class="mt-4">Data</h3>
+      <div class="table-responsive">
+        <table class="table table-sm table-striped" id="dataTable">
+          <thead>
+            <tr>
+              <th>Time(s)</th>
+              <th>WaterLevel</th>
+              <th>LightStatus</th>
+              <th>Status</th>
+              <th>LED</th>
+              <th>Buzzer</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+      const ctx = document.getElementById('waterChart').getContext('2d');
+      let chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Water Level',
+            data: [],
+            borderColor: 'rgba(54, 162, 235, 1)',
+            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+            tension: 0.2,
+            pointRadius: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: { title: { display: true, text: 'Time(s)' } },
+            y: { title: { display: true, text: 'WaterLevel' } }
+          }
+        }
+      });
+
+      async function loadData(){
+        const status = document.getElementById('statusFilter').value;
+        const limit = document.getElementById('limitInput').value || 200;
+        let url = `/api/v1/csv?limit=${limit}`;
+        if(status) url += `&status=${encodeURIComponent(status)}`;
+        const res = await fetch(url);
+        const rows = await res.json();
+
+        // sort by Time(s) ascending for chart
+        rows.sort((a,b) => (a['Time(s)']||0) - (b['Time(s)']||0));
+
+        chart.data.labels = rows.map(r => r['Time(s)']);
+        chart.data.datasets[0].data = rows.map(r => r['WaterLevel']);
+        chart.update();
+
+        const tbody = document.querySelector('#dataTable tbody');
+        tbody.innerHTML = '';
+        for(const r of rows){
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${r['Time(s)'] ?? ''}</td>
+            <td>${r['WaterLevel'] ?? ''}</td>
+            <td>${r['LightStatus'] ?? ''}</td>
+            <td>${r['Status'] ?? ''}</td>
+            <td>${r['LED'] ?? ''}</td>
+            <td>${r['Buzzer'] ?? ''}</td>
+          `;
+          tbody.appendChild(tr);
+        }
+      }
+
+      document.getElementById('refreshBtn').addEventListener('click', loadData);
+      // initial load
+      loadData();
+    </script>
+  </body>
+</html>
